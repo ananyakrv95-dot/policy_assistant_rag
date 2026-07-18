@@ -1,0 +1,9 @@
+langchain
+langchain-groq
+langchain-community
+sentence-transformers
+faiss-cpu
+pymupdf
+streamlit
+cohere
+llama_index
