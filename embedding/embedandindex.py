@@ -19,3 +19,4 @@ def create_index(chunks):
     vector_store.save_local(INDEX_FOLDER)
     
     return vector_store
+
