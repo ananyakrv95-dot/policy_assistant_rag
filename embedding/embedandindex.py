@@ -1,9 +1,13 @@
 from langchain_huggingface import HuggingFaceEmbedding
 from langchain_community.vectorstores import FAISS
+from config import (
+    INDEX_FOLDER,
+    EMBEDDING_MODEL
+)
 
 def create_embed_model():
     model = HuggingFaceEmbedding(
-        model_name="BAAI/bge-small-en-v1.5"
+        model_name=EMBEDDING_MODEL
     )
 
     return model

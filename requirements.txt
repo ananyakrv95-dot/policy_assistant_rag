@@ -8,3 +8,4 @@ streamlit
 cohere
 llama_index
 pypdf
+lanchain_qroq

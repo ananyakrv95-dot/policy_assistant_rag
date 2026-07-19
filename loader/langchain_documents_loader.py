@@ -6,7 +6,9 @@ from langchain_community.document_loaders import (
     CSVLoader,
     PyPDFLoader
 )
-
+from config import (
+    REQUIRED_COLUMNS
+)
 
 
 
