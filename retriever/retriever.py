@@ -14,6 +14,7 @@ def load_vector_store():
     return FAISS.load_local(
         folder_path=str(INDEX_FOLDER),
         embeddings=embedding,
+        allow_dangerous_deserialization=True,
     )
 
 def retrieve_chunks(vector_store, query:str, k:int=5):
