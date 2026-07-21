@@ -86,7 +86,7 @@ if question:
             with st.spinner("Searching documents..."):
                 result = answer_question(
                     vector_store=vector_store,
-                    chain=chain,
+                    llm=chain,
                     question=question,
                     k=k,
                 )
