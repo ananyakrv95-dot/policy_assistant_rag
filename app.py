@@ -8,7 +8,7 @@ from pipeline.rag_pipeline import (
 st.set_page_config(
     page_title="Chat Assistant",
     page_icon="📘",
-    layout="centred",
+    layout="centered",
 )
 
 st.title("Chat Assistant")
