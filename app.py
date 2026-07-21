@@ -1,6 +1,6 @@
 import streamlit as st
 
-from rag_pipeline import (
+from pipeline.rag_pipeline import (
     answer_question,
     create_rag_pipeline,
 )
