@@ -1,5 +1,4 @@
 langchain
-langchain-groq
 langchain-community
 sentence-transformers
 faiss-cpu
@@ -8,8 +7,9 @@ streamlit
 cohere
 llama_index
 pypdf
-langchain-qroq
 python-dotenv
+langchain-groq
 langchain-huggingface
 langchain-text-splitters
 transformers
+
