@@ -1,9 +1,9 @@
 from pathlib import Path
 
 
-INDEX_FOLDER = "faiss_index"
+INDEX_FOLDER = Path("faiss_index")
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-DATA_FOLDER = "data"
+DATA_FOLDER = Path("data")
 LLM_MODEL = "llama-3.3-70b-versatile"
 
 REQUIRED_COLUMNS = {

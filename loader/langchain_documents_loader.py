@@ -111,9 +111,9 @@ def load_documents(folder_path: Path):
         glob="**/*.txt",
         loader_cls=TextLoader,
         loader_kwargs={
-            encoding="utf-8", 
-            autodetect_encoding=True
-        },
+            "encoding":"utf-8", 
+            "autodetect_encoding":True
+        }
     )
 
     """
@@ -124,7 +124,7 @@ def load_documents(folder_path: Path):
         glob="**/*.csv",
         loader_cls=CSVLoader,
         loader_kwargs={
-            "encoding"="utf-8-sig",
+            "encoding":"utf-8-sig",
             # Searchable text
             "content_columns": [
                 "retrieval_context",

@@ -17,23 +17,25 @@ def format_context(documents: list[Document]) -> str:
     formatted_chunks = []
 
     for index,document in enumerate(documents, start=1):
-        source = documents.metadata.get(
+        source = document.metadata.get(
             "source",
             document.metadata.get(
                 "file_name", "Unknown source"
             ),
         )
 
-        title = documents.metadata.get(
+        title = document.metadata.get(
             "article_title",
             document.metadata.get("file_name", "Untitled"),
         )
 
-        formatted_chunk = 
+        formatted_chunk = (
             f"[Source {index}]\n"
             f"Title: {title}\n"
             f"Source: {source}\n"
             f"Content:\n{document.page_content}"
+        )
+            
 
         formatted_chunks.append(formatted_chunk)
 
@@ -55,4 +57,62 @@ def create_llm() -> ChatGroq :
     )
 
 def create_rag_pipeline():
-    
+    vector_store = load_vector_store()
+
+    prompt = ChatPromptTemplate.from_template(
+        PROMPT_TEMPLATE
+    )
+
+    llm = create_llm()
+
+    chain = prompt | llm
+
+    return vector_store, chain
+
+def build_sources(documents: list[Document]) -> list[dict]:
+    sources = []
+    for number, document in enumerate(documents, start=1):
+        metadata = document.metadata
+        sources.append(
+            {
+                "number": number,
+                "title": metadata.get(
+                    "article_title",
+                    metadata.get("file_name", "Untitled"),
+                ),
+                "source": metadata.get(
+                    "source",
+                    metadata.get(
+                        "file_name",
+                        "Unknown source",
+                    ),
+                ),
+                "content": document.page_content,
+            }
+        )
+    return sources
+
+def answer_question(
+    vector_store,
+    llm,
+    question: str,
+    k: int = 5,
+):  
+    documents = retrieve_chunks(
+        vector_store,
+        question,
+        k,
+    )
+
+    context = format_context(documents)
+
+    prompt = PROMPT_TEMPLATE.format(
+        context=context,
+        question=question,
+    )
+
+    response = llm.invoke(prompt)
+
+    return response.content, documents
+
+

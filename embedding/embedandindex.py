@@ -1,4 +1,4 @@
-from langchain_huggingface import HuggingFaceEmbedding
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from config import (
     INDEX_FOLDER,
@@ -6,7 +6,7 @@ from config import (
 )
 
 def create_embed_model():
-    model = HuggingFaceEmbedding(
+    model = HuggingFaceEmbeddings(
         model_name=EMBEDDING_MODEL
     )
 

@@ -8,4 +8,8 @@ streamlit
 cohere
 llama_index
 pypdf
-lanchain_qroq
+langchain_qroq
+python-dotenv
+langchain-huggingface
+langchain-text-splitters
+transformers
