@@ -94,25 +94,28 @@ def build_sources(documents: list[Document]) -> list[dict]:
 
 def answer_question(
     vector_store,
-    llm,
+    chain,
     question: str,
     k: int = 5,
-):  
+):
     documents = retrieve_chunks(
-        vector_store,
-        question,
-        k,
+        vector_store=vector_store,
+        query=question,
+        k=k,
     )
 
     context = format_context(documents)
 
-    prompt = PROMPT_TEMPLATE.format(
-        context=context,
-        question=question,
+    response = chain.invoke(
+        {
+            "context": context,
+            "question": question,
+        }
     )
 
-    response = llm.invoke(prompt)
-
-    return response.content, documents
+    return {
+        "answer": response.content,
+        "sources": build_sources(documents),
+    }
 
 
