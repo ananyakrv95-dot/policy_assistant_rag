@@ -51,9 +51,10 @@ if st.sidebar.button("Clear conversation"):
     st.rerun
 
 # Display chat history
-for messages in st.session_state.messages:
+for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+
         if message.get("sources"):
             with st.expander("View sources"):
                 for source in message["sources"]:
