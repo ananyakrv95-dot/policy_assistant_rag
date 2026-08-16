@@ -48,7 +48,7 @@ if "messages" not in st.session_state:
 
 if st.sidebar.button("Clear conversation"):
     st.session_state.messages = []
-    st.rerun
+    st.rerun()
 
 # Display chat history
 for message in st.session_state.messages:
