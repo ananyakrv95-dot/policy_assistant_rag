@@ -14,5 +14,6 @@ langchain-text-splitters
 transformers
 ragas
 pandas
-
+rank-bm25
+langchain-cohere
 

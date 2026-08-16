@@ -3,6 +3,15 @@ from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
+from retriever.hybrid_retriever import (
+    create_bm25_retriever,
+    hybrid_retrieve,
+    load_chunks,
+)
+from retriever.reranker import (
+    create_cohere_reranker,
+    rerank_documents,
+)
 from config import DATA_FOLDER, LLM_MODEL, PROMPT_TEMPLATE
 from retriever.retriever import load_vector_store, retrieve_chunks
 
@@ -56,7 +65,7 @@ def create_llm() -> ChatGroq :
         temperature=0,
     )
 
-def create_rag_pipeline():
+"""def create_rag_pipeline():
     vector_store = load_vector_store()
 
     prompt = ChatPromptTemplate.from_template(
@@ -68,6 +77,33 @@ def create_rag_pipeline():
     chain = prompt | llm
 
     return vector_store, chain
+    """
+
+    def create_rag_pipeline():
+    vector_store = load_vector_store()
+
+    chunks = load_chunks()
+    bm25_retriever = create_bm25_retriever(
+        chunks=chunks,
+        k=10,
+    )
+
+    reranker = create_cohere_reranker()
+    llm = create_llm()
+
+    prompt = ChatPromptTemplate.from_template(
+        PROMPT_TEMPLATE
+    )
+
+    chain = prompt | llm
+
+    return (
+        vector_store,
+        bm25_retriever,
+        reranker,
+        llm,
+        chain,
+    )
 
 def build_sources(documents: list[Document]) -> list[dict]:
     sources = []
@@ -92,7 +128,7 @@ def build_sources(documents: list[Document]) -> list[dict]:
         )
     return sources
 
-def answer_question(
+"""def answer_question(
     vector_store,
     chain,
     question: str,
@@ -118,4 +154,68 @@ def answer_question(
         "sources": build_sources(documents),
     }
 
+"""
 
+def answer_question(
+    vector_store,
+    bm25_retriever,
+    reranker,
+    llm,
+    chain,
+    question: str,
+    mode: str = "hybrid_rerank",
+    use_hyde: bool = False,
+):
+    dense_query = (
+        create_hyde_query(llm, question)
+        if use_hyde
+        else question
+    )
+
+    if mode == "dense":
+        documents = vector_store.similarity_search(
+            dense_query,
+            k=3,
+        )
+
+    elif mode == "hybrid":
+        documents = hybrid_retrieve(
+            vector_store=vector_store,
+            bm25_retriever=bm25_retriever,
+            query=question,
+            dense_query=dense_query,
+            k=10,
+        )[:3]
+
+    elif mode == "hybrid_rerank":
+        candidates = hybrid_retrieve(
+            vector_store=vector_store,
+            bm25_retriever=bm25_retriever,
+            query=question,
+            dense_query=dense_query,
+            k=10,
+        )
+
+        documents = rerank_documents(
+            reranker=reranker,
+            query=question,
+            documents=candidates,
+        )
+
+    else:
+        raise ValueError(f"Unknown retrieval mode: {mode}")
+
+    context = format_context(documents)
+
+    response = chain.invoke(
+        {
+            "context": context,
+            "question": question,
+        }
+    )
+
+    return {
+        "answer": response.content,
+        "sources": build_sources(documents),
+        "hyde_query": dense_query if use_hyde else None,
+    }
