@@ -1,6 +1,9 @@
 import hashlib
 import pickle
 
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document
+
 from config import (
     CHUNKS_FILE,
     HYBRID_BM25_WEIGHT,
@@ -8,33 +11,41 @@ from config import (
 )
 
 def document_id(document: Document) -> str:
+    """Create a stable ID for matching the same document."""
     source = str(document.metadata.get("source", ""))
     page = str(document.metadata.get("page", ""))
     content = document.page_content
 
     value = f"{source}|{page}|{content}"
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        value.encode("utf-8")
+    ).hexdigest()
 
 
 def load_chunks() -> list[Document]:
+    """Load document chunks from a pickle file."""
     if not CHUNKS_FILE.exists():
-        raise FileNotFoundError(
-            "Saved chunks were not found. Run: python ingest.py"
-        )
-
-    with CHUNKS_FILE.open("rb") as file:
-        return pickle.load(file)
+        raise FileNotFoundError(f"Chunks file not found: {CHUNKS_FILE}. Run python ingest.py to create it.")
+    
+    with open(CHUNKS_FILE, "rb") as f:
+        chunks = pickle.load(f)
+        return chunks
+    
 
 def create_bm25_retriever(
     chunks: list[Document],
-    k: int = 10,
+    k: int = 10
 ) -> BM25Retriever:
-    retriever = BM25Retriever.from_documents(chunks)
+    """Create a BM25 retriever from document chunks."""
+    retriever = BM25Retriever.from_documents(
+        chunks
+    )
     retriever.k = k
     return retriever
 
+    
 
-def rank_scores(documents: list[Document]) -> dict[str, float]:
+"""def rank_scores(documents: list[Document]) -> dict[str, float]:
     """
     Convert rank position into a 0–1 score.
 
@@ -53,7 +64,52 @@ def rank_scores(documents: list[Document]) -> dict[str, float]:
         document_id(document): 1 - (index / (total - 1))
         for index, document in enumerate(documents)
     }
+"""
 
+def weighted_rrf(
+    ranked_documents: list[tuple[list[Document], float]],
+    rrf_k: int = 60, # List of (documents, weight) tuplesn
+) -> list[Document]:
+     """
+    Combine multiple ranked result lists using weighted RRF.
+
+    RRF score:
+        weight / (rrf_k + rank)
+
+    Rank starts from 1.
+    """
+    documents_by_id = {}
+    fused_scores = {}
+
+    for documents, weight in ranked_documents:
+        for rank, document in enumerate(documents, start=1):
+            doc_id = document_id(document)
+            documents_by_id[doc_id] = document
+            fused_scores[doc_id] = (
+                fused_scores.get(doc_id, 0.0)
+                + weight / (rrf_k + rank)
+            )
+
+    fused_documents = []
+
+    for doc_id, document in documents_by_id.items():
+        # Copy instead of mutating the original document.
+        fused_document = Document(
+            page_content=document.page_content,
+            metadata={
+                **document.metadata,
+                "rrf_score": fused_scores[doc_id],
+            },
+        )
+
+        fused_documents.append(fused_document)
+
+    return sorted(
+        fused_documents,
+        key=lambda document: document.metadata["rrf_score"],
+        reverse=True,
+    )
+        
 
 def hybrid_retrieve(
     vector_store,
@@ -64,46 +120,29 @@ def hybrid_retrieve(
     bm25_weight: float = HYBRID_BM25_WEIGHT,
     faiss_weight: float = HYBRID_FAISS_WEIGHT,
 ) -> list[Document]:
+    """Retrieve documents using a hybrid approach of BM25 and FAISS."""
     if not query.strip():
-        raise ValueError("Query cannot be empty.")
+        raise ValueError("Query must not be empty.")
 
-    # Original query preserves exact keywords for BM25.
+    if bm25_weight <= 0: 
+        raise ValueError("At least one of bm25_weight must be greater than 0.")
+
+    if faiss_weight <= 0:
+        raise ValueError("At least one of faiss_weight must be greater than 0.")
+
     bm25_documents = bm25_retriever.invoke(query)[:k]
-
-    # HyDE text can optionally improve semantic FAISS retrieval.
     faiss_documents = vector_store.similarity_search(
         dense_query or query,
-        k=k,
+        k=k
+    )
+    
+    fused_docs = weighted_rrf(
+        ranked_documents=[
+            (bm25_documents, bm25_weight),
+            (faiss_documents, faiss_weight),
+        ],
+        rrf_k=rrf_k,
     )
 
-    bm25_scores = rank_scores(bm25_documents)
-    faiss_scores = rank_scores(faiss_documents)
-
-    documents_by_id = {
-        document_id(document): document
-        for document in bm25_documents + faiss_documents
-    }
-
-    combined = []
-
-    for doc_id, document in documents_by_id.items():
-        bm25_score = bm25_scores.get(doc_id, 0.0)
-        faiss_score = faiss_scores.get(doc_id, 0.0)
-
-        hybrid_score = (
-            bm25_weight * bm25_score
-            + faiss_weight * faiss_score
-        )
-
-        document.metadata["bm25_score"] = bm25_score
-        document.metadata["faiss_score"] = faiss_score
-        document.metadata["hybrid_score"] = hybrid_score
-
-        combined.append(document)
-
-    combined.sort(
-        key=lambda document: document.metadata["hybrid_score"],
-        reverse=True,
-    )
-
-    return combined[:k]
+    return fused_docs[:k]
+    
